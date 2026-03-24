@@ -354,13 +354,61 @@ if pagina == "🏥 Situación Actual":
                         {"<br><small style='color:#64748b'>"+orig+"</small>" if orig else ""}</span>
                     </div>""", unsafe_allow_html=True)
 
-        if gastos_variables_mes > 0:
-            st.markdown(f"""<div class="card" style="padding:10px 16px;border-color:#8b5cf6">
-                <span style="color:#c4b5fd">Gastos Variables del Mes</span>
-                <span style="float:right;color:#a78bfa;font-weight:600">S/ {gastos_variables_mes:,.2f}</span>
-            </div>""", unsafe_allow_html=True)
+        # Gastos Variables — siempre visible aunque sea 0
+        st.markdown(f"""<div class="card" style="padding:10px 16px;border-color:#8b5cf6">
+            <span style="color:#c4b5fd">🛒 Gastos Variables del Mes <small style="color:#64748b;font-size:.75rem">(registrados día a día)</small></span>
+            <span style="float:right;color:#a78bfa;font-weight:700;font-size:1.05rem">S/ {gastos_variables_mes:,.2f}</span>
+        </div>""", unsafe_allow_html=True)
 
         st.markdown(f"<div style='text-align:right;font-weight:700;color:#f87171;font-size:1.1rem'>Total: S/ {total_egresos:,.2f}</div>", unsafe_allow_html=True)
+
+    # ── Gastos Variables del Mes — Desglose detallado ──
+    st.markdown('<p class="sec">🛒 Desglose de Gastos Variables del Mes</p>', unsafe_allow_html=True)
+
+    if not gastos_df.empty and "FECHA" in gastos_df.columns:
+        mask_mes = gastos_df["FECHA"].dt.to_period("M").astype(str) == MES
+        df_mes = gastos_df[mask_mes].copy()
+    else:
+        df_mes = pd.DataFrame()
+
+    if df_mes.empty:
+        st.info(f"📭 Aún no hay gastos registrados para **{MES_LABEL}**. Usa '📝 Registrar Gasto' para agregar.")
+    else:
+        gv1, gv2, gv3, gv4 = st.columns(4)
+        gv1.metric("Total Variables", f"S/ {gastos_variables_mes:,.2f}")
+        gv2.metric("N° de Gastos",    f"{len(df_mes)}")
+        gv3.metric("Promedio Diario", f"S/ {gastos_variables_mes / max(df_mes['FECHA'].dt.day.max(),1):,.2f}")
+        tc_var = df_mes.loc[df_mes["Método"].str.contains("Tarjeta", case=False, na=False), "Monto"].sum()
+        gv4.metric("En Tarjeta",      f"S/ {tc_var:,.2f}")
+
+        # Tabla por categoría
+        by_cat = (df_mes.groupby("Categoría")["Monto"].sum()
+                  .reset_index().sort_values("Monto", ascending=False))
+        by_cat["% del Total"] = (by_cat["Monto"] / gastos_variables_mes * 100).round(1)
+        by_cat["Monto"] = by_cat["Monto"].apply(lambda x: f"S/ {x:,.2f}")
+        by_cat["% del Total"] = by_cat["% del Total"].apply(lambda x: f"{x}%")
+
+        cv1, cv2 = st.columns([1, 1.4])
+        with cv1:
+            st.markdown("**Por Categoría**")
+            st.dataframe(by_cat, use_container_width=True, hide_index=True,
+                         column_config={
+                             "Categoría": st.column_config.TextColumn("Categoría"),
+                             "Monto":     st.column_config.TextColumn("Monto"),
+                             "% del Total": st.column_config.TextColumn("%"),
+                         })
+        with cv2:
+            st.markdown("**Últimos 10 gastos del mes**")
+            df_tabla = df_mes[["FECHA","¿Quién pagó?","Monto","Categoría","Descripción"]].head(10).copy()
+            df_tabla["FECHA"] = df_tabla["FECHA"].dt.strftime("%d/%m")
+            df_tabla["Monto"] = df_tabla["Monto"].apply(lambda x: f"S/ {x:,.2f}")
+            st.dataframe(df_tabla, use_container_width=True, hide_index=True,
+                         column_config={
+                             "FECHA":        st.column_config.TextColumn("Fecha", width="small"),
+                             "¿Quién pagó?": st.column_config.TextColumn("Quién", width="small"),
+                             "Monto":        st.column_config.TextColumn("Monto", width="small"),
+                             "Descripción":  st.column_config.TextColumn("Descripción"),
+                         })
 
     # ── Balance final ──
     st.divider()
@@ -371,7 +419,8 @@ if pagina == "🏥 Situación Actual":
         <p style="color:#94a3b8;margin:0;font-size:.9rem">BALANCE FINAL DEL MES</p>
         <p class="{color_cls}" style="margin:8px 0;font-size:2rem">{icono} S/ {balance:,.2f}</p>
         <p style="color:#64748b;margin:0;font-size:.8rem">
-        Ingresos S/ {total_ingresos:,.2f} &nbsp;−&nbsp; Egresos S/ {total_egresos:,.2f}</p>
+        Ingresos S/ {total_ingresos:,.2f} &nbsp;−&nbsp; Egresos S/ {total_egresos:,.2f}
+        &nbsp;·&nbsp; Variables S/ {gastos_variables_mes:,.2f}</p>
     </div>""", unsafe_allow_html=True)
 
     # ── Ahorros ──
