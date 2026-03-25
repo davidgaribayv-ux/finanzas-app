@@ -259,9 +259,10 @@ if pagina == "🏥 Situación Actual":
     total_deudas_mes = sum(to_pen(r["cuota_mensual"], r["moneda"], USD, EUR)
                            for r in deudas if int(r.get("cuotas_restantes",0)) > 0)
 
-    # Gastos variables del mes activo
+    # Gastos variables → usar SIEMPRE el mes real del calendario (no el configurado)
+    MES_REAL = datetime.now().strftime("%Y-%m")
     if not gastos_df.empty and "FECHA" in gastos_df.columns:
-        mask_mes = gastos_df["FECHA"].dt.to_period("M").astype(str) == MES
+        mask_mes = gastos_df["FECHA"].dt.to_period("M").astype(str) == MES_REAL
         gastos_variables_mes = gastos_df.loc[mask_mes, "Monto"].sum()
     else:
         gastos_variables_mes = 0.0
@@ -366,13 +367,14 @@ if pagina == "🏥 Situación Actual":
     st.markdown('<p class="sec">🛒 Desglose de Gastos Variables del Mes</p>', unsafe_allow_html=True)
 
     if not gastos_df.empty and "FECHA" in gastos_df.columns:
-        mask_mes = gastos_df["FECHA"].dt.to_period("M").astype(str) == MES
+        mask_mes = gastos_df["FECHA"].dt.to_period("M").astype(str) == MES_REAL
         df_mes = gastos_df[mask_mes].copy()
     else:
         df_mes = pd.DataFrame()
 
+    MES_REAL_LABEL = datetime.now().strftime("%B %Y").capitalize()
     if df_mes.empty:
-        st.info(f"📭 Aún no hay gastos registrados para **{MES_LABEL}**. Usa '📝 Registrar Gasto' para agregar.")
+        st.info(f"📭 Aún no hay gastos registrados para **{MES_REAL_LABEL}**. Usa '📝 Registrar Gasto' para agregar.")
     else:
         gv1, gv2, gv3, gv4 = st.columns(4)
         gv1.metric("Total Variables", f"S/ {gastos_variables_mes:,.2f}")
