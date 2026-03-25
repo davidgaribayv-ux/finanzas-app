@@ -19,7 +19,7 @@ st.set_page_config(
 
 CATEGORIAS = ["Comida para casa","Comida personal","Deliverys","Cosas de la casa",
               "Taxis / Transporte","Pascal","Gasto hormiga","Otros"]
-METODOS    = ["Tarjeta de Crédito","Efectivo / Débito"]
+METODOS    = ["Tarjeta de Crédito David","Tarjeta de Crédito Lau","Efectivo / Débito"]
 PERSONAS   = ["David","Lau"]
 MONEDAS    = ["PEN","USD","EUR"]
 SCOPES     = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive"]
@@ -380,8 +380,9 @@ if pagina == "🏥 Situación Actual":
         gv1.metric("Total Variables", f"S/ {gastos_variables_mes:,.2f}")
         gv2.metric("N° de Gastos",    f"{len(df_mes)}")
         gv3.metric("Promedio Diario", f"S/ {gastos_variables_mes / max(df_mes['FECHA'].dt.day.max(),1):,.2f}")
-        tc_var = df_mes.loc[df_mes["Método"].str.contains("Tarjeta", case=False, na=False), "Monto"].sum()
-        gv4.metric("En Tarjeta",      f"S/ {tc_var:,.2f}")
+        tc_david = df_mes.loc[df_mes["Método"].str.contains("David", case=False, na=False), "Monto"].sum()
+        tc_lau   = df_mes.loc[df_mes["Método"].str.contains("Lau",   case=False, na=False), "Monto"].sum()
+        gv4.metric("TC David / TC Lau", f"S/ {tc_david:,.2f} / S/ {tc_lau:,.2f}")
 
         # Tabla por categoría
         by_cat = (df_mes.groupby("Categoría")["Monto"].sum()
@@ -632,13 +633,15 @@ elif pagina == "📊 Análisis":
     mes_sel  = st.selectbox("Mes", meses)
     df_f     = df_valid if mes_sel=="Todos" else df_valid[df_valid["FECHA"].dt.to_period("M").astype(str)==mes_sel]
 
-    mask_tc = df_f["Método"].str.contains("Tarjeta", case=False, na=False)
+    mask_tc_david = df_f["Método"].str.contains("David", case=False, na=False)
+    mask_tc_lau   = df_f["Método"].str.contains("Lau",   case=False, na=False)
+    mask_efectivo = ~df_f["Método"].str.contains("Tarjeta", case=False, na=False)
     k1,k2,k3,k4,k5 = st.columns(5)
-    k1.metric("Total",            f"S/ {df_f['Monto'].sum():,.2f}")
-    k2.metric("Tarjeta Crédito",  f"S/ {df_f.loc[mask_tc,'Monto'].sum():,.2f}")
-    k3.metric("Efectivo/Débito",  f"S/ {df_f.loc[~mask_tc,'Monto'].sum():,.2f}")
-    k4.metric("David",            f"S/ {df_f.loc[df_f['¿Quién pagó?']=='David','Monto'].sum():,.2f}")
-    k5.metric("Lau",              f"S/ {df_f.loc[df_f['¿Quién pagó?']=='Lau','Monto'].sum():,.2f}")
+    k1.metric("Total",           f"S/ {df_f['Monto'].sum():,.2f}")
+    k2.metric("TC David",        f"S/ {df_f.loc[mask_tc_david,'Monto'].sum():,.2f}")
+    k3.metric("TC Lau",          f"S/ {df_f.loc[mask_tc_lau,'Monto'].sum():,.2f}")
+    k4.metric("David (total)",   f"S/ {df_f.loc[df_f['¿Quién pagó?']=='David','Monto'].sum():,.2f}")
+    k5.metric("Lau (total)",     f"S/ {df_f.loc[df_f['¿Quién pagó?']=='Lau','Monto'].sum():,.2f}")
 
     gc1,gc2 = st.columns([1.2,1])
     with gc1:
